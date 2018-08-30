@@ -1,0 +1,7 @@
+[package]
+name = "dengine"
+version = "0.1.0"
+authors = ["hrishi <hrishikesh.mk1@gmail.com>"]
+
+[dependencies]
+mysql = "*"
