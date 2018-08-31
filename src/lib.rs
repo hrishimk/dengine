@@ -22,21 +22,6 @@ impl Row {
     where
         T: mysql::prelude::FromValue,
     {
-        if key == "trans_date" {
-            let a: my::Value = self.0.get(key).unwrap();
-            let b: Option<(u16, u8, u8, u8, u8, u8, u32)> = match a {
-                my::Value::Date(a, b, c, d, e, f, g) => Some((a, b, c, d, e, f, g)),
-                _ => None,
-            };
-            if let Some(c) = b {
-                println!(
-                    "date nums is {},{},{},{},{},{},{}",
-                    c.0, c.1, c.2, c.3, c.4, c.5, c.6
-                );
-            }
-            println!("trans_date val is {:?}", a);
-        }
-
         self.0.get::<T, &str>(key)
     }
 
