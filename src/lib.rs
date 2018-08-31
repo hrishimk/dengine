@@ -8,11 +8,78 @@ mod tests {
 #[macro_use]
 extern crate mysql;
 
+extern crate chrono;
+extern crate chrono_tz;
+
 use std::collections::HashMap;
 
 use mysql as my;
 
 pub struct Row(pub my::Row);
+
+impl Row {
+    pub fn get<T>(&self, key: &str) -> Option<T>
+    where
+        T: mysql::prelude::FromValue,
+    {
+        if key == "trans_date" {
+            let a: my::Value = self.0.get(key).unwrap();
+            let b: Option<(u16, u8, u8, u8, u8, u8, u32)> = match a {
+                my::Value::Date(a, b, c, d, e, f, g) => Some((a, b, c, d, e, f, g)),
+                _ => None,
+            };
+            if let Some(c) = b {
+                println!(
+                    "date nums is {},{},{},{},{},{},{}",
+                    c.0, c.1, c.2, c.3, c.4, c.5, c.6
+                );
+            }
+            println!("trans_date val is {:?}", a);
+        }
+
+        self.0.get::<T, &str>(key)
+    }
+
+    pub fn get_date_time(&self, key: &str) -> Option<chrono::DateTime<chrono::offset::Local>> {
+        let a: my::Value = self.0.get(key).unwrap();
+        let b: (i32, u32, u32, u32, u32, u32, u32) = match a {
+            my::Value::Date(a, b, c, d, e, f, g) => (
+                a as i32, b as u32, c as u32, d as u32, e as u32, f as u32, g as u32,
+            ),
+            _ => return None,
+        };
+        let date = chrono::NaiveDate::from_ymd(b.0, b.1, b.2);
+        let time = chrono::NaiveTime::from_hms_milli(b.3, b.4, b.5, b.6);
+
+        let date_time = chrono::NaiveDateTime::new(date, time);
+
+        let offset = chrono::offset::FixedOffset::east(0);
+
+        Some(chrono::DateTime::<chrono::offset::Local>::from_utc(
+            date_time, offset,
+        ))
+    }
+
+    pub fn get_date_string(&self, key: &str, format: &str) -> Option<String> {
+        let a: my::Value = self.0.get(key).unwrap();
+        let b: (i32, u32, u32, u32, u32, u32, u32) = match a {
+            my::Value::Date(a, b, c, d, e, f, g) => (
+                a as i32, b as u32, c as u32, d as u32, e as u32, f as u32, g as u32,
+            ),
+            _ => return None,
+        };
+
+        if b.1 <= 0 || b.2 <= 0 {
+            return None;
+        }
+
+        let date = chrono::NaiveDate::from_ymd(b.0, b.1, b.2);
+
+        let a = date.format(format);
+
+        Some(format!("{}", a))
+    }
+}
 
 pub trait Queryable {
     fn new(row: Row) -> Self;
@@ -31,6 +98,12 @@ pub struct DbEngine {
 pub struct SelectHolder<T> {
     pub data: Vec<T>,
     pub count: usize,
+}
+
+impl<T> SelectHolder<T> {
+    pub fn new(data: Vec<T>, count: usize) -> Self {
+        Self { data, count }
+    }
 }
 
 impl DbEngine {
@@ -114,5 +187,10 @@ impl DbEngine {
                 None => Err("Count get error"),
             }
         }
+    }
+
+    pub fn concat_colums(colums: Vec<&str>) -> String {
+        let s = colums.join(",");
+        format!("concat_ws(' ', {})", s)
     }
 }
