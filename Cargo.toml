@@ -7,3 +7,4 @@ authors = ["hrishi <hrishikesh.mk1@gmail.com>"]
 mysql = "*"
 chrono = "0.4.6"
 chrono-tz = "0.5.0"
+serde = "1.0.71"

@@ -5,23 +5,62 @@ mod tests {
         assert_eq!(2 + 2, 4);
     }
 }
-#[macro_use]
+//#[macro_use]
 extern crate mysql;
+
+extern crate serde;
 
 extern crate chrono;
 extern crate chrono_tz;
-
-use std::collections::HashMap;
 
 use mysql as my;
 
 pub struct Row(pub my::Row);
 
+#[derive(Debug)]
+pub struct Rnd2Ir(f64);
+
+#[derive(Debug)]
+pub struct Rnd2(f64);
+
+fn round2(a: f64) -> f64 {
+    (a * 100_f64).round() / 100_f64
+}
+
+impl mysql::prelude::ConvIr<Rnd2> for Rnd2Ir {
+    fn new(v: mysql::Value) -> Result<Self, mysql::FromValueError> {
+        match v {
+            mysql::Value::Float(fl_val) => Ok(Rnd2Ir(round2(fl_val))),
+            v => Err(mysql::FromValueError(v)),
+        }
+    }
+    fn commit(self) -> Rnd2 {
+        Rnd2(self.0)
+    }
+    fn rollback(self) -> mysql::Value {
+        mysql::Value::Float(self.0)
+    }
+}
+
+impl mysql::prelude::FromValue for Rnd2 {
+    type Intermediate = Rnd2Ir;
+}
+
+impl serde::Serialize for Rnd2 {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_f64(self.0)
+    }
+}
+
 impl Row {
     pub fn get<T>(&self, key: &str) -> Option<T>
     where
-        T: mysql::prelude::FromValue,
+        T: mysql::prelude::FromValue + std::fmt::Debug,
     {
+        println!("f64 val is {:?}", self.0.get::<T, &str>(key));
         self.0.get::<T, &str>(key)
     }
 
@@ -141,7 +180,7 @@ impl DbEngine {
                 None => return Err("No from in sql"),
             };
 
-            let end_index = match sql.find(" limit ") {
+            let end_index = match sql.to_lowercase().find(" limit ") {
                 Some(x) => x,
                 None => return Err("No limit in sql"),
             };
