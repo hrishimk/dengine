@@ -1,12 +1,4 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
-//#[macro_use]
-extern crate mysql;
+pub extern crate mysql;
 
 extern crate serde;
 
@@ -15,7 +7,13 @@ extern crate chrono_tz;
 
 use mysql as my;
 
-pub struct Row(pub my::Row);
+mod traits;
+mod types;
+
+pub use traits::*;
+pub use types::*;
+
+pub type Desult<T> = Result<T, String>;
 
 #[derive(Debug)]
 pub struct Rnd2Ir(f64);
@@ -55,58 +53,10 @@ impl serde::Serialize for Rnd2 {
     }
 }
 
-impl Row {
-    pub fn get<T>(&self, key: &str) -> Option<T>
-    where
-        T: mysql::prelude::FromValue + std::fmt::Debug,
-    {
-        println!("f64 val is {:?}", self.0.get::<T, &str>(key));
-        self.0.get::<T, &str>(key)
-    }
-
-    pub fn get_date_time(&self, key: &str) -> Option<chrono::DateTime<chrono::offset::Local>> {
-        let a: my::Value = self.0.get(key).unwrap();
-        let b: (i32, u32, u32, u32, u32, u32, u32) = match a {
-            my::Value::Date(a, b, c, d, e, f, g) => (
-                a as i32, b as u32, c as u32, d as u32, e as u32, f as u32, g as u32,
-            ),
-            _ => return None,
-        };
-        let date = chrono::NaiveDate::from_ymd(b.0, b.1, b.2);
-        let time = chrono::NaiveTime::from_hms_milli(b.3, b.4, b.5, b.6);
-
-        let date_time = chrono::NaiveDateTime::new(date, time);
-
-        let offset = chrono::offset::FixedOffset::east(0);
-
-        Some(chrono::DateTime::<chrono::offset::Local>::from_utc(
-            date_time, offset,
-        ))
-    }
-
-    pub fn get_date_string(&self, key: &str, format: &str) -> Option<String> {
-        let a: my::Value = self.0.get(key).unwrap();
-        let b: (i32, u32, u32, u32, u32, u32, u32) = match a {
-            my::Value::Date(a, b, c, d, e, f, g) => (
-                a as i32, b as u32, c as u32, d as u32, e as u32, f as u32, g as u32,
-            ),
-            _ => return None,
-        };
-
-        if b.1 <= 0 || b.2 <= 0 {
-            return None;
-        }
-
-        let date = chrono::NaiveDate::from_ymd(b.0, b.1, b.2);
-
-        let a = date.format(format);
-
-        Some(format!("{}", a))
-    }
-}
-
-pub trait Queryable {
-    fn new(row: Row) -> Self;
+#[derive(Debug)]
+pub struct Affected {
+    pub affected_rows: u64,
+    pub last_insert_id: u64,
 }
 
 #[derive(Debug)]
@@ -147,12 +97,71 @@ impl DbEngine {
         }
     }
 
-    pub fn select<T: Queryable + std::fmt::Debug>(
+    pub fn value<T, R>(&self, sql: &str, colum: &str, params: R) -> Result<T, String>
+    where
+        T: mysql::prelude::FromValue,
+        R: std::clone::Clone,
+        mysql::Params: std::convert::From<R>,
+    {
+        let res: Option<mysql::Row> = self.pool.first_exec(sql, &params).map_err(|e| {
+            println!("Database error: {:?}", e);
+            "Failed"
+        })?;
+
+        let res = match res {
+            Some(x) => Ok::<T, String>(x.get::<T, &str>(colum).unwrap()),
+            None => return Err("Failed to run query".to_string()),
+        };
+
+        match res {
+            Ok(x) => Ok(x),
+            Err(_) => Err("Failed to unwrap value".to_string()),
+        }
+    }
+
+    pub fn row<T, R>(&self, sql: &str, params: R) -> Result<T, String>
+    where
+        T: Queryable,
+        R: std::clone::Clone,
+        mysql::Params: std::convert::From<R>,
+    {
+        let res: Option<mysql::Row> = self.pool.first_exec(sql, &params).map_err(|e| {
+            println!("Database error: {:?}", e);
+            "Failed"
+        })?;
+
+        let res = match res {
+            Some(x) => Ok::<T, String>(T::new(Row(x))),
+            None => return Err("Failed to run query".to_string()),
+        };
+
+        match res {
+            Ok(x) => Ok(x),
+            Err(_) => Err("Failed to unwrap value".to_string()),
+        }
+    }
+
+    pub fn array<T: Queryable + std::fmt::Debug, P: std::clone::Clone>(
         &self,
         sql: &str,
-        params: Vec<String>,
+        params: P,
         calc_found_rows: bool,
-    ) -> std::result::Result<SelectHolder<T>, &str> {
+    ) -> Result<Vec<T>, &str>
+    where
+        mysql::Params: std::convert::From<P>,
+    {
+        self.select(sql, params, calc_found_rows).map(|r| r.data)
+    }
+
+    pub fn select<T: Queryable + std::fmt::Debug, P: std::clone::Clone>(
+        &self,
+        sql: &str,
+        params: P,
+        calc_found_rows: bool,
+    ) -> std::result::Result<SelectHolder<T>, &str>
+    where
+        mysql::Params: std::convert::From<P>,
+    {
         let res: Vec<T> = self
             .pool
             .prep_exec(sql, &params)
@@ -211,6 +220,142 @@ impl DbEngine {
                 None => Err("Count get error"),
             }
         }
+    }
+
+    pub fn insert_update<T: Insertable>(
+        &self,
+        table: &str,
+        fields: Vec<T>,
+    ) -> Result<Affected, String> {
+        let mut c_arr = Vec::new();
+        let mut q_arr = Vec::new();
+        let mut a_arr = Vec::new();
+        let data_fields = T::fields();
+        let mut q_str: String = "".to_string();
+        for (i, n) in fields.iter().enumerate() {
+            q_arr.push(Vec::new());
+            let values = n.values();
+            for (j, m) in data_fields.iter().enumerate() {
+                if i == 0 {
+                    c_arr.push(m.to_string());
+                }
+                q_arr[i].push("?");
+                a_arr.push(values[j].to_string());
+            }
+            if i != 0 {
+                q_str.push(',');
+            }
+            q_str.push_str(format!("({})", q_arr[i].join(&",")).as_str());
+        }
+
+        let sql = format!(
+            "INSERT INTO {} ({}) VALUES {} ON DUPLICATE KEY UPDATE {}",
+            table,
+            c_arr.join(&","),
+            q_str,
+            Self::gen_dupdate(c_arr)
+        );
+
+        println!("sql is {}", sql);
+        let res: Affected = self
+            .pool
+            .prep_exec(sql, &a_arr)
+            .map(|result| Affected {
+                affected_rows: result.affected_rows(),
+                last_insert_id: result.last_insert_id(),
+            })
+            .map_err(|e| {
+                println!("Database error: {:?}", e);
+                "Failed"
+            })?;
+
+        Ok(res)
+    }
+
+    fn gen_dupdate(colums: Vec<String>) -> String {
+        let mut rt = Vec::new();
+        for n in colums {
+            rt.push(format!("{} = VALUES({}) ", n, n));
+        }
+        rt.join(&",")
+    }
+
+    fn delete_ids<T>(
+        &self,
+        table: &str,
+        id_colum: &str,
+        id_values: Vec<T>,
+        in_out: &str,
+    ) -> Result<Affected, String>
+    where
+        T: std::clone::Clone,
+        mysql::Value: std::convert::From<T>,
+    {
+        let mut c_arr: Vec<char> =
+            Vec::with_capacity(std::mem::size_of::<char>() * id_values.len());
+
+        for _ in &id_values {
+            c_arr.push('?');
+        }
+
+        let sql = format!(
+            "delete from {} where {} {} ({})",
+            table,
+            id_colum,
+            in_out,
+            c_arr
+                .iter()
+                .enumerate()
+                .map(|e| {
+                    if e.0 != 0 {
+                        format!(",{}", e.1)
+                    } else {
+                        e.1.to_string()
+                    }
+                })
+                .collect::<String>()
+        );
+
+        println!("sql is {}", sql);
+        let res: Affected = self
+            .pool
+            .prep_exec(sql, &id_values)
+            .map(|result| Affected {
+                affected_rows: result.affected_rows(),
+                last_insert_id: result.last_insert_id(),
+            })
+            .map_err(|e| {
+                println!("Database error: {:?}", e);
+                "Failed"
+            })?;
+
+        Ok(res)
+    }
+
+    pub fn delete_wid<T>(
+        &self,
+        table: &str,
+        id_colum: &str,
+        id_values: Vec<T>,
+    ) -> Result<Affected, String>
+    where
+        T: std::clone::Clone,
+        mysql::Value: std::convert::From<T>,
+    {
+        self.delete_ids::<T>(table, id_colum, id_values, "IN")
+    }
+
+    pub fn delete_nwid<T>(
+        &self,
+        table: &str,
+        id_colum: &str,
+        id_values: Vec<T>,
+    ) -> Result<Affected, String>
+    where
+        T: std::clone::Clone,
+        mysql::Value: std::convert::From<T>,
+    {
+        self.delete_ids::<T>(table, id_colum, id_values, "NOT IN")
     }
 
     pub fn concat_colums(colums: Vec<&str>) -> String {

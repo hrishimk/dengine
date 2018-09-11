@@ -8,3 +8,4 @@ mysql = "*"
 chrono = "0.4.6"
 chrono-tz = "0.5.0"
 serde = "1.0.71"
+dengine_derive = {path = "dengine_derive"}

@@ -1,0 +1,12 @@
+[package]
+name = "dengine_derive"
+version = "0.1.0"
+authors = ["hrishi <hrishikesh.mk1@gmail.com>"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "0.4.13"
+syn = "0.14.9"
+quote = "0.6.8"
