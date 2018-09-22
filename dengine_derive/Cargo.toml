@@ -2,6 +2,9 @@
 name = "dengine_derive"
 version = "0.1.0"
 authors = ["hrishi <hrishikesh.mk1@gmail.com>"]
+license = "MIT"
+description = "Derive lib for dengine database lib"
+repository = "https://github.com/hrishimk/dengine"
 
 [lib]
 proc-macro = true
