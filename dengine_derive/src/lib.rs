@@ -1,14 +1,13 @@
 extern crate proc_macro;
 extern crate proc_macro2;
 
-#[macro_use]
 extern crate syn;
 
 #[macro_use]
 extern crate quote;
 
 use proc_macro2::TokenStream;
-use syn::{Data, DataStruct, DeriveInput, Fields, GenericParam, Generics};
+use syn::{DataStruct, DeriveInput};
 
 #[proc_macro_derive(Insertable)]
 pub fn insertable_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
