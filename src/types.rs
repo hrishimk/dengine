@@ -17,6 +17,12 @@ impl From<String> for Dypes {
     }
 }
 
+impl<'a> From<&'a str> for Dypes {
+    fn from(val: &'a str) -> Self {
+        Dypes::String(val.to_string())
+    }
+}
+
 impl From<Dypes> for Option<String> {
     fn from(val: Dypes) -> Self {
         match val {
@@ -148,6 +154,12 @@ where
 {
     fn from(x: T) -> Self {
         Params::new(vec![Dypes::from(x)])
+    }
+}
+
+impl From<()> for Params {
+    fn from(_: ()) -> Self {
+        Params::new(vec![])
     }
 }
 
