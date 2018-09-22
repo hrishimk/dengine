@@ -2,10 +2,19 @@
 name = "dengine"
 version = "0.1.0"
 authors = ["hrishi <hrishikesh.mk1@gmail.com>"]
+description = "mysql/sqlite abstraction lib"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/hrishimk/dengine"
+categories = ["database"]
 
 [dependencies]
 mysql = "*"
 chrono = "0.4.6"
 chrono-tz = "0.5.0"
 serde = "1.0.71"
-dengine_derive = {path = "dengine_derive"}
+dengine_derive = {path = "dengine_derive", version = "*"}
+deslite = {path = "deslite", version = "*"}
+
+[workspace]
+members = ["dengine_derive", "deslite"]

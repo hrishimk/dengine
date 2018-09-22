@@ -1,17 +1,36 @@
-use mysql;
+use super::{Affected, Desult, Dypes, Params, SelectHolder};
 use std;
 extern crate chrono;
 
-pub struct Row(pub mysql::Row);
+pub struct Row<'a>(&'a Rowable);
 
-impl Row {
-    pub fn get<T>(&self, key: &str) -> Option<T>
+impl<'a> Row<'a> {
+    pub fn new<T>(row: &'a T) -> Self
     where
-        T: mysql::prelude::FromValue + std::fmt::Debug,
+        T: Rowable,
     {
-        self.0.get::<T, &str>(key)
+        Row(row)
     }
 
+    pub fn get<T>(&self, key: &str) -> Option<T>
+    where
+        Option<T>: std::convert::From<Dypes>,
+    {
+        if key == "user_profile_id" {
+            println!("get user_profile_id {:?}", self.0.get_val(key));
+        }
+
+        match self.0.get_val(key) {
+            Some(x) => <Option<T>>::from(x),
+            None => None,
+        }
+    }
+
+    pub fn get_date_string(&self, key: &str, format: &str) -> Desult<String> {
+        self.0.get_date_string(key, format)
+    }
+
+    /*
     pub fn get_date_time(&self, key: &str) -> Option<chrono::DateTime<chrono::offset::Local>> {
         let a: mysql::Value = self.0.get(key).unwrap();
         let b: (i32, u32, u32, u32, u32, u32, u32) = match a {
@@ -51,6 +70,7 @@ impl Row {
 
         Some(format!("{}", a))
     }
+    */
 }
 
 pub trait Queryable {
@@ -65,4 +85,78 @@ pub trait Insertable {
 
     ///List of values of struct as &str
     fn values(&self) -> Vec<String>;
+}
+
+pub trait Rowable {
+    fn get_val(&self, key: &str) -> Option<Dypes>;
+
+    fn get_date_string(&self, key: &str, format: &str) -> Desult<String>;
+}
+
+pub trait Connectionable {
+    fn select<T: Queryable + std::fmt::Debug, P: std::clone::Clone>(
+        &self,
+        sql: &str,
+        params: P,
+        calc_found_rows: bool,
+    ) -> Desult<SelectHolder<T>>
+    where
+        Params: std::convert::From<P>;
+
+    fn value<T, R>(&self, sql: &str, colum: &str, params: R) -> Desult<T>
+    where
+        T: std::convert::From<Dypes>,
+        R: std::clone::Clone,
+        Params: std::convert::From<R>;
+
+    fn row<T, R>(&self, sql: &str, params: R) -> Desult<T>
+    where
+        T: Queryable,
+        R: std::clone::Clone,
+        Params: std::convert::From<R>;
+
+    fn array<T: Queryable + std::fmt::Debug, P: std::clone::Clone>(
+        &self,
+        sql: &str,
+        params: P,
+        calc_found_rows: bool,
+    ) -> Desult<Vec<T>>
+    where
+        Params: std::convert::From<P>,
+    {
+        self.select(sql, params, calc_found_rows).map(|r| r.data)
+    }
+
+    fn insert_update<T: Insertable>(&self, table: &str, fields: Vec<T>) -> Desult<Affected>;
+
+    fn gen_dupdate(colums: Vec<String>) -> String {
+        let mut rt = Vec::new();
+        for n in colums {
+            rt.push(format!("{} = VALUES({}) ", n, n));
+        }
+        rt.join(&",")
+    }
+
+    fn delete_ids<T>(
+        &self,
+        table: &str,
+        id_colum: &str,
+        id_values: Vec<T>,
+        in_out: &str,
+    ) -> Desult<Affected>
+    where
+        T: std::clone::Clone,
+        Dypes: std::convert::From<T>;
+
+    fn delete_wid<T>(&self, table: &str, id_colum: &str, id_values: Vec<T>) -> Desult<Affected>
+    where
+        T: std::clone::Clone,
+        Dypes: std::convert::From<T>;
+
+    fn delete_nwid<T>(&self, table: &str, id_colum: &str, id_values: Vec<T>) -> Desult<Affected>
+    where
+        T: std::clone::Clone,
+        Dypes: std::convert::From<T>;
+
+    fn concat_colums(colums: Vec<&str>) -> String;
 }
