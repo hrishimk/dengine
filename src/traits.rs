@@ -88,12 +88,24 @@ pub trait Insertable {
 }
 
 pub trait Rowable {
+    ///Get value from a row
     fn get_val(&self, key: &str) -> Option<Dypes>;
 
+    /// Get date string for row with column name -> key
+    /// Format uses chrono format str
     fn get_date_string(&self, key: &str, format: &str) -> Desult<String>;
 }
 
 pub trait Connectionable {
+    /// Executes a query with params
+    fn execute<P>(&self, sql: &str, params: P) -> Desult<()>
+    where
+        P: std::clone::Clone,
+        Params: std::convert::From<P>;
+
+    /// Select sql query
+    /// params- Individual value or Vec or Tuple
+    /// calc_found_rows- If true count parameter in return structure is set to total number of calculated rows. Else return the number of rows returned
     fn select<T: Queryable + std::fmt::Debug, P: std::clone::Clone>(
         &self,
         sql: &str,
@@ -103,18 +115,24 @@ pub trait Connectionable {
     where
         Params: std::convert::From<P>;
 
+    /// Returns scalar value
+    /// colum: column name
+    /// params: Params as in select
     fn value<T, R>(&self, sql: &str, colum: &str, params: R) -> Desult<T>
     where
         T: std::convert::From<Dypes>,
         R: std::clone::Clone,
         Params: std::convert::From<R>;
 
+    /// Return a single row
+    /// params: Same as in select
     fn row<T, R>(&self, sql: &str, params: R) -> Desult<T>
     where
         T: Queryable,
         R: std::clone::Clone,
         Params: std::convert::From<R>;
 
+    /// Return vector of rows instead of struct with meta data
     fn array<T: Queryable + std::fmt::Debug, P: std::clone::Clone>(
         &self,
         sql: &str,
@@ -127,6 +145,7 @@ pub trait Connectionable {
         self.select(sql, params, calc_found_rows).map(|r| r.data)
     }
 
+    /// Not tested
     fn insert_update<T: Insertable>(&self, table: &str, fields: Vec<T>) -> Desult<Affected>;
 
     fn gen_dupdate(colums: Vec<String>) -> String {
@@ -137,6 +156,7 @@ pub trait Connectionable {
         rt.join(&",")
     }
 
+    /// Delete rows
     fn delete_ids<T>(
         &self,
         table: &str,

@@ -52,6 +52,20 @@ impl Connection {
 }
 
 impl Connectionable for Connection {
+    fn execute<P>(&self, sql: &str, params: P) -> Desult<()>
+    where
+        P: std::clone::Clone,
+        Params: std::convert::From<P>,
+    {
+        let params = Params::from(params);
+        let params = mysql::Params::from(params);
+        self.con.prep_exec(sql, &params).map_err(|e| {
+            println!("Database error: {:?}", e);
+            Error::from(e)
+        })?;
+        Ok(())
+    }
+
     fn value<T, R>(&self, sql: &str, colum: &str, params: R) -> Desult<T>
     where
         T: std::convert::From<Dypes>,

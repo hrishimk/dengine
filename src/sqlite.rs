@@ -117,6 +117,22 @@ impl<'a> Rowable for deslite::Row<'a> {
 }
 
 impl Connectionable for Connection {
+    fn execute<P>(&self, sql: &str, params: P) -> Desult<()>
+    where
+        P: std::clone::Clone,
+        Params: std::convert::From<P>,
+    {
+        let mut stmt = deslite::Stmt::init(&self.con);
+        stmt.prepare(sql).map_err(|e| Error::from(e))?;
+
+        let params = Params::from(params);
+        stmt.bind_values(&params.0).map_err(|e| Error::from(e))?;
+
+        stmt.execute().map_err(|e| Error::from(e))?;
+
+        Ok(())
+    }
+
     fn value<T, R>(&self, sql: &str, colum: &str, params: R) -> Desult<T>
     where
         T: std::convert::From<Dypes>,
