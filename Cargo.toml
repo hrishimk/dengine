@@ -15,6 +15,3 @@ chrono-tz = "0.5.0"
 serde = "1.0.71"
 dengine_derive = "*"
 deslite = "*"
-
-[workspace]
-members = ["dengine_derive", "deslite"]
