@@ -1,4 +1,5 @@
 /target
+/dengine_derive/target
 **/*.rs.bk
 /deslite
 Cargo.lock
