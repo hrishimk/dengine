@@ -1,3 +1,6 @@
+//! Aims to create a common interface to use mysql and sqlite 
+//! databases. 
+
 extern crate deslite;
 extern crate mysql;
 
@@ -14,6 +17,8 @@ mod types;
 pub use traits::*;
 pub use types::*;
 
+/// Result type
+/// Err defaults to Error
 pub type Desult<T> = Result<T, Error>;
 
 #[derive(Debug)]
@@ -40,6 +45,7 @@ impl DbEngine {
     }
 }
 
+/// Struct returned when the select method is used.
 #[derive(Debug, PartialEq, Eq)]
 pub struct SelectHolder<T> {
     pub data: Vec<T>,
@@ -52,6 +58,7 @@ impl<T> SelectHolder<T> {
     }
 }
 
+/// Error type for the lib
 #[derive(Debug)]
 pub enum Error {
     SQLErr(String),

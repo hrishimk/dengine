@@ -2,6 +2,7 @@ use super::{Affected, Desult, Dypes, Params, SelectHolder};
 use std;
 extern crate chrono;
 
+/// A row of returned data
 pub struct Row<'a>(&'a Rowable);
 
 impl<'a> Row<'a> {
@@ -73,6 +74,23 @@ impl<'a> Row<'a> {
     */
 }
 
+/// Sructs for holding a row of select data
+/// must imlement this trait.
+/// ```
+/// struct User{
+///     id: u64,
+///     name: String,
+/// }
+/// 
+/// impl Queryable for User{
+///     fn new(row: Row) -> Self{
+///         User{
+///             id: row.get("id").unwrap(),
+///             name: row.get("name").unwrap(),
+///         }
+///     }
+/// }
+/// ```
 pub trait Queryable {
     fn new(row: Row) -> Self;
 }
@@ -87,6 +105,8 @@ pub trait Insertable {
     fn values(&self) -> Vec<String>;
 }
 
+/// Trait that mysql::Row or sqlite::Row 
+/// usable inside a dengine::Row
 pub trait Rowable {
     ///Get value from a row
     fn get_val(&self, key: &str) -> Option<Dypes>;
@@ -96,6 +116,8 @@ pub trait Rowable {
     fn get_date_string(&self, key: &str, format: &str) -> Desult<String>;
 }
 
+/// Makes a mysql or sqlite con
+/// usable with dengine apis
 pub trait Connectionable {
     /// Executes a query with params
     fn execute<P>(&self, sql: &str, params: P) -> Desult<()>
