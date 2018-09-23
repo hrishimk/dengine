@@ -1,5 +1,5 @@
-pub extern crate deslite;
-pub extern crate mysql;
+extern crate deslite;
+extern crate mysql;
 
 extern crate serde;
 
