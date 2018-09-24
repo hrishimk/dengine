@@ -1,5 +1,5 @@
-//! Aims to create a common interface to use mysql and sqlite 
-//! databases. 
+//! Aims to create a common interface to use mysql and sqlite
+//! databases.
 
 extern crate deslite;
 extern crate mysql;
@@ -25,6 +25,15 @@ pub type Desult<T> = Result<T, Error>;
 pub struct Affected {
     pub affected_rows: u64,
     pub last_insert_id: u64,
+}
+
+impl Affected {
+    pub fn new(affected_rows: u64, last_insert_id: u64) -> Self {
+        Self {
+            affected_rows,
+            last_insert_id,
+        }
+    }
 }
 
 #[derive(Debug)]
