@@ -4,6 +4,7 @@ use super::{
 };
 use deslite::{SqliteCon, Stmt, Value};
 use std;
+use std::collections::HashMap;
 
 impl From<deslite::Error> for Error {
     fn from(val: deslite::Error) -> Self {
@@ -238,6 +239,8 @@ impl Connectionable for Connection {
     }
 
     fn insert_update<T: Insertable>(&self, table: &str, fields: Vec<T>) -> Desult<Affected> {
+        unimplemented!()
+        /*
         let mut c_arr = Vec::new();
         let mut q_arr = Vec::new();
         let mut a_arr = Vec::new();
@@ -268,7 +271,8 @@ impl Connectionable for Connection {
         );
 
         let mut stmt = deslite::Stmt::init(&self.con);
-
+        println!("sql is {}", sql);
+        println!("params is {:?}", a_arr);
         stmt.prepare(&sql).map_err(|e| Error::from(e))?;
         stmt.bind_values(&a_arr).map_err(|e| Error::from(e))?;
 
@@ -283,6 +287,87 @@ impl Connectionable for Connection {
         };
 
         Ok(res)
+        */
+    }
+
+    fn insert<T: Insertable>(&self, table: &str, fields: Vec<T>) -> Desult<Affected> {
+        let colum_names: Vec<String> = T::fields();
+        let values: Vec<Dypes> = fields.iter().fold(Vec::new(), |mut acc, x| {
+            acc.append(&mut x.values());
+            acc
+        });
+        let q_arr: Vec<String> = fields.iter().fold(Vec::new(), |mut acc, _| {
+            let single: Vec<&str> = std::iter::repeat("?").take(colum_names.len()).collect();
+            acc.push(format!("({})", single.join(",")));
+            acc
+        });
+        let sql = format!(
+            "INSERT INTO {} ({}) VALUES ({})",
+            table,
+            colum_names.join(","),
+            q_arr.join(",")
+        );
+
+        let mut stmt = deslite::Stmt::init(&self.con);
+        stmt.prepare(&sql).map_err(|e| Error::from(e))?;
+        stmt.bind_values(&values).map_err(|e| Error::from(e))?;
+
+        stmt.execute().map_err(|e| {
+            println!("{:?}", e);
+            Error::from(e)
+        })?;
+
+        let res = Affected {
+            affected_rows: self.con.affected_rows() as u64,
+            last_insert_id: self.con.last_insert_id(),
+        };
+
+        Ok(res)
+    }
+
+    fn update<T: Insertable>(
+        &self,
+        table: &str,
+        fields: Vec<T>,
+        where_fields: HashMap<&str, Dypes>,
+    ) -> Desult<Affected> {
+        let mut values: Vec<Dypes> = fields.iter().fold(Vec::new(), |mut acc, x| {
+            acc.append(&mut x.values());
+            acc
+        });
+
+        let colum_names: Vec<String> = T::fields();
+
+        let vars: Vec<String> = colum_names.iter().map(|x| format!("{} = ?", x)).collect();
+
+        let where_str: Vec<String> = where_fields.keys().map(|key| format!("{}?", key)).collect();
+
+        for value in where_fields.values() {
+            values.push(value.clone());
+        }
+
+        drop(where_fields);
+
+        let sql = format!(
+            "UPDATE {} SET {} WHERE {}",
+            table,
+            vars.join(","),
+            where_str.join(" and ")
+        );
+
+        let mut stmt = deslite::Stmt::init(&self.con);
+        stmt.prepare(&sql).map_err(|e| Error::from(e))?;
+        stmt.bind_values(&values).map_err(|e| Error::from(e))?;
+
+        stmt.execute().map_err(|e| {
+            println!("{:?}", e);
+            Error::from(e)
+        })?;
+
+        Ok(Affected {
+            affected_rows: self.con.affected_rows() as u64,
+            last_insert_id: self.con.last_insert_id(),
+        })
     }
 
     fn delete_ids<T>(

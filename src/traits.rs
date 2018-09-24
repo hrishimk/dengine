@@ -1,5 +1,6 @@
 use super::{Affected, Desult, Dypes, Params, SelectHolder};
 use std;
+use std::collections::HashMap;
 extern crate chrono;
 
 /// A row of returned data
@@ -81,7 +82,7 @@ impl<'a> Row<'a> {
 ///     id: u64,
 ///     name: String,
 /// }
-/// 
+///
 /// impl Queryable for User{
 ///     fn new(row: Row) -> Self{
 ///         User{
@@ -102,10 +103,10 @@ pub trait Insertable {
     fn fields() -> Vec<String>;
 
     ///List of values of struct as &str
-    fn values(&self) -> Vec<String>;
+    fn values(&self) -> Vec<Dypes>;
 }
 
-/// Trait that mysql::Row or sqlite::Row 
+/// Trait that mysql::Row or sqlite::Row
 /// usable inside a dengine::Row
 pub trait Rowable {
     ///Get value from a row
@@ -169,6 +170,41 @@ pub trait Connectionable {
 
     /// Not tested
     fn insert_update<T: Insertable>(&self, table: &str, fields: Vec<T>) -> Desult<Affected>;
+
+    /// Insert a vector of structs into a table.
+    /// ```
+    /// //Untested
+    /// #[derive(Debug, Insertable)]
+    /// struct User{
+    ///     id: u64,
+    ///     name: String,
+    /// }
+    ///
+    /// impl User{
+    ///     pub fn new (id: u64, name: String) -> Self{
+    ///         User{
+    ///             id,
+    ///             name,
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// let mut data = Vec::new();
+    /// data.push(User::new(1, "name1"));
+    /// data.push(User::new(2, "name2"));
+    ///
+    /// let affected = con.insert("user", data).unwrap();
+    /// ```
+    ///
+    fn insert<T: Insertable>(&self, table: &str, fields: Vec<T>) -> Desult<Affected>;
+
+    /// Update fields of a table where where_fields.key = where_fields.value
+    fn update<T: Insertable>(
+        &self,
+        table: &str,
+        fields: Vec<T>,
+        where_fields: HashMap<&str, Dypes>,
+    ) -> Desult<Affected>;
 
     fn gen_dupdate(colums: Vec<String>) -> String {
         let mut rt = Vec::new();

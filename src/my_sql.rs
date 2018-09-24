@@ -6,6 +6,7 @@ use super::{
 };
 use mysql::Value;
 use std;
+use std::collections::HashMap;
 
 impl From<mysql::Error> for Error {
     fn from(val: mysql::Error) -> Self {
@@ -205,7 +206,7 @@ impl Connectionable for Connection {
                     c_arr.push(m.to_string());
                 }
                 q_arr[i].push("?");
-                a_arr.push(values[j].to_string());
+                a_arr.push(values[j].clone());
             }
             if i != 0 {
                 q_str.push(',');
@@ -225,6 +226,87 @@ impl Connectionable for Connection {
         let res: Affected = self
             .con
             .prep_exec(sql, &a_arr)
+            .map(|result| Affected {
+                affected_rows: result.affected_rows(),
+                last_insert_id: result.last_insert_id(),
+            }).map_err(|e| {
+                println!("Database error: {:?}", e);
+                Error::from(e)
+            })?;
+
+        Ok(res)
+    }
+
+    fn insert<T: Insertable>(&self, table: &str, fields: Vec<T>) -> Desult<Affected> {
+        let colum_names: Vec<String> = T::fields();
+        let values: Vec<Dypes> = fields.iter().fold(Vec::new(), |mut acc, x| {
+            acc.append(&mut x.values());
+            acc
+        });
+
+        let q_arr: Vec<String> = fields.iter().fold(Vec::new(), |mut acc, x| {
+            let single: Vec<&str> = std::iter::repeat("?").take(colum_names.len()).collect();
+            acc.push(format!("({})", single.join(",")));
+            acc
+        });
+
+        let sql = format!(
+            "INSERT INTO {} ({}) VALUES ({})",
+            table,
+            colum_names.join(","),
+            q_arr.join(",")
+        );
+
+        let res: Affected = self
+            .con
+            .prep_exec(sql, &values)
+            .map(|result| Affected {
+                affected_rows: result.affected_rows(),
+                last_insert_id: result.last_insert_id(),
+            }).map_err(|e| {
+                println!("Database error: {:?}", e);
+                Error::from(e)
+            })?;
+
+        Ok(res)
+    }
+
+    fn update<T: Insertable>(
+        &self,
+        table: &str,
+        fields: Vec<T>,
+        where_fields: HashMap<&str, Dypes>,
+    ) -> Desult<Affected> {
+        let mut values: Vec<Dypes> = fields.iter().fold(Vec::new(), |mut acc, x| {
+            acc.append(&mut x.values());
+            acc
+        });
+
+        let colum_names: Vec<String> = T::fields();
+
+        let vars: Vec<String> = colum_names.iter().map(|x| format!("{} = ?", x)).collect();
+
+        let where_str: Vec<String> = where_fields
+            .iter()
+            .map(|(key, _)| format!("{}?", key))
+            .collect();
+
+        for value in where_fields.values() {
+            values.push(value.clone());
+        }
+
+        drop(where_fields);
+
+        let sql = format!(
+            "UPDATE {} SET {} WHERE {}",
+            table,
+            vars.join(","),
+            where_str.join(" and ")
+        );
+
+        let res: Affected = self
+            .con
+            .prep_exec(sql, &values)
             .map(|result| Affected {
                 affected_rows: result.affected_rows(),
                 last_insert_id: result.last_insert_id(),
