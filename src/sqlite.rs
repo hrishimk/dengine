@@ -238,7 +238,7 @@ impl Connectionable for Connection {
         Ok(T::new(Row::new(&row)))
     }
 
-    fn insert_update<T: Insertable>(&self, table: &str, fields: Vec<T>) -> Desult<Affected> {
+    fn insert_update<T: Insertable>(&self, _table: &str, _fields: Vec<T>) -> Desult<Affected> {
         unimplemented!()
         /*
         let mut c_arr = Vec::new();

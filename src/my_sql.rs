@@ -244,7 +244,7 @@ impl Connectionable for Connection {
             acc
         });
 
-        let q_arr: Vec<String> = fields.iter().fold(Vec::new(), |mut acc, x| {
+        let q_arr: Vec<String> = fields.iter().fold(Vec::new(), |mut acc, _x| {
             let single: Vec<&str> = std::iter::repeat("?").take(colum_names.len()).collect();
             acc.push(format!("({})", single.join(",")));
             acc
