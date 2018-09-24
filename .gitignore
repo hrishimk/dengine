@@ -1,10 +1,4 @@
 /target
 **/*.rs.bk
 Cargo.lock
-dengine_derive/target/.rustc_info.json
-dengine_derive/target/rls/.rustc_info.json
-dengine_derive/target/rls/debug/libdengine_derive.rmeta
-dengine_derive/target/rls/debug/deps/save-analysis/libproc_macro2-0587fc4b30ea8a96.json
-dengine_derive/target/rls/debug/deps/save-analysis/libquote-adb9e2977f4d275d.json
-dengine_derive/target/rls/debug/deps/save-analysis/libsyn-da3bec316506e60c.json
-dengine_derive/target/rls/debug/deps/save-analysis/libunicode_xid-ae365158b694a198.json
+dengine_derive/target/
