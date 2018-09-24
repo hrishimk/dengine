@@ -60,7 +60,7 @@ fn gen_funs(data: &DataStruct) -> TokenStream {
                     }
 
                     fn values(&self)-> Vec<String>{
-                        vec![#(self.#fields2.to_string()),*]
+                        vec![#(Dypes::from(self.#fields2)),*]
                     }
 
             }
