@@ -302,7 +302,7 @@ impl Connectionable for Connection {
             acc
         });
         let sql = format!(
-            "INSERT INTO {} ({}) VALUES ({})",
+            "INSERT INTO {} ({}) VALUES {}",
             table,
             colum_names.join(","),
             q_arr.join(",")
@@ -311,6 +311,8 @@ impl Connectionable for Connection {
         let mut stmt = deslite::Stmt::init(&self.con);
         stmt.prepare(&sql).map_err(|e| Error::from(e))?;
         stmt.bind_values(&values).map_err(|e| Error::from(e))?;
+
+        
 
         stmt.execute().map_err(|e| {
             println!("{:?}", e);
