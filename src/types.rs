@@ -23,6 +23,16 @@ impl<'a> From<&'a str> for Dypes {
     }
 }
 
+impl From<bool> for Dypes {
+    fn from(val: bool) -> Self {
+        if val {
+            Dypes::Uint(1)
+        } else {
+            Dypes::Uint(0)
+        }
+    }
+}
+
 impl From<Dypes> for Option<String> {
     fn from(val: Dypes) -> Self {
         match val {
