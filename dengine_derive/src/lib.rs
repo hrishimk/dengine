@@ -59,8 +59,8 @@ fn gen_funs(data: &DataStruct) -> TokenStream {
                         vec![#(#fields.to_string()),*]
                     }
 
-                    fn values(&self)-> Vec<String>{
-                        vec![#(Dypes::from(self.#fields2)),*]
+                    fn values(&self)-> Vec<Dypes>{
+                        vec![#(Dypes::from(self.#fields2.clone())),*]
                     }
 
             }
