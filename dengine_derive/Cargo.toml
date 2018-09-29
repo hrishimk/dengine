@@ -1,6 +1,6 @@
 [package]
 name = "dengine_derive"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["hrishi <hrishikesh.mk1@gmail.com>"]
 license = "MIT"
 description = "Derive lib for dengine database lib"
